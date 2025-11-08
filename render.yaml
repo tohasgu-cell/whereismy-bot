@@ -1,0 +1,33 @@
+# render.yaml
+services:
+  - type: web
+    name: whereismy-bot
+    runtime: python
+    plan: free
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "python main.py"
+    envVars:
+      - key: BOT_TOKEN
+        sync: false
+      - key: PYTHONUNBUFFERED
+        value: "1"
+    disk:
+      name: bot-data
+      mountPath: /opt/render/project/src
+      sizeGB: 1
+
+  - type: web
+    name: whereismy-admin
+    runtime: python
+    plan: free
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "streamlit run admin.py --server.port=$PORT --server.address=0.0.0.0"
+    envVars:
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: PYTHONUNBUFFERED
+        value: "1"
+    disk:
+      name: bot-data  # ← тот же диск! Общая БД
+      mountPath: /opt/render/project/src
+      sizeGB: 1
