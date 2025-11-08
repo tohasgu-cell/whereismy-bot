@@ -296,11 +296,44 @@ async def handle_archive(callback: CallbackQuery):
 # === ЗАПУСК ===
 dp.include_router(router)
 
-async def main():
-    await init_db()
-    logging.info("🚀 Бот запускается...")
-    await dp.start_polling(bot)
+import os
+from aiogram import Bot, Dispatcher
+from aiogram.webhook.aiohttp_server import (
+    SimpleRequestHandler,
+    setup_application,
+)
+from aiohttp import web
+from dotenv import load_dotenv
+
+load_dotenv()
+
+# Получаем токен и настройки
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+WEBHOOK_HOST = os.getenv("RENDER_EXTERNAL_URL", "https://your-bot.onrender.com")
+WEBHOOK_PATH = f"/webhook/{BOT_TOKEN}"
+WEBHOOK_URL = f"{WEBHOOK_HOST}{WEBHOOK_PATH}"
+
+# Создаём приложение
+bot = Bot(token=BOT_TOKEN)
+dp = Dispatcher()
+dp.include_router(router)
+
+app = web.Application()
+SimpleRequestHandler(dispatcher=dp, bot=bot).register(app, path=WEBHOOK_PATH)
+setup_application(app, dp, bot=bot)
+
+# Health-check эндпоинт (обязательно для Render!)
+async def ping(request):
+    return web.Response(text="OK")
+
+app.router.add_get("/ping", ping)
 
 if __name__ == "__main__":
-    import asyncio
-    asyncio.run(main())
+    # Локально можно использовать polling (для тестов)
+    if os.getenv("RENDER") is None:
+        import asyncio
+        asyncio.run(dp.start_polling(bot))
+    else:
+        # На Render — запускаем веб-сервер
+        port = int(os.getenv("PORT", 10000))
+        web.run_app(app, host="0.0.0.0", port=port)
